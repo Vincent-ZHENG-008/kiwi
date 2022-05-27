@@ -5,10 +5,10 @@ package com.zhengwenhuan.kiwi.messaging;
  */
 public interface MessageRegistration {
 
-    void register(String destination, MessageSupplier supplier);
+    void register(String outgoing, MessageSupplier supplier);
 
-    void register(MessageConsumer consumer);
+    void register(String incoming, MessageConsumer consumer);
 
-    void register(MessageFunction function);
+    void register(String incoming, String outgoing, MessageFunction function);
 
 }

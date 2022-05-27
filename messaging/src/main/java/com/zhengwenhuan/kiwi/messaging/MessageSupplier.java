@@ -11,17 +11,10 @@ import java.util.function.Supplier;
  */
 public class MessageSupplier implements Supplier<Publisher<Message<?>>> {
 
-    private final String destination;
-
     private final Supplier<?> delegate;
 
-    public MessageSupplier(String destination, Supplier<?> delegate) {
-        this.destination = destination;
+    public MessageSupplier(Supplier<?> delegate) {
         this.delegate = delegate;
-    }
-
-    public String getDestination() {
-        return destination;
     }
 
     @Override

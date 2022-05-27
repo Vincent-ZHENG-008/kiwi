@@ -6,7 +6,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,26 +16,26 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
     private final Map<String, Sinks.Many<Message<?>>> consumerRegistration = Maps.mutable.empty();
 
     @Override
-    public void register(String destination, MessageSupplier supplier) {
-        Publisher<Message<?>> messagePublisher = supplier.get();
+    public void register(String outgoing, MessageSupplier supplier) {
+        synchronized (consumerRegistration) {
+            Publisher<Message<?>> messagePublisher = supplier.get();
 
-        if (messagePublisher instanceof Mono<Message<?>>) {
-            ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(supplier.getDestination(), message)).subscribe();
-        } else if (messagePublisher instanceof Flux<Message<?>>) {
-            ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(supplier.getDestination(), message)).subscribe();
+            if (messagePublisher instanceof Mono<Message<?>>) {
+                ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
+            } else if (messagePublisher instanceof Flux<Message<?>>) {
+                ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
+            }
         }
     }
 
     @Override
-    public void register(MessageConsumer consumer) {
-        String input = consumer.getInput();
-
+    public void register(String incoming, MessageConsumer consumer) {
         synchronized (consumerRegistration) {
-            Sinks.Many<Message<?>> emitter = consumerRegistration.get(input);
+            Sinks.Many<Message<?>> emitter = consumerRegistration.get(incoming);
 
             if (emitter == null) {
                 emitter = Sinks.many().multicast().onBackpressureBuffer();
-                consumerRegistration.put(input, emitter);
+                consumerRegistration.put(incoming, emitter);
             }
 
             consumer.accept(emitter);
@@ -44,24 +43,21 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
     }
 
     @Override
-    public void register(MessageFunction function) {
-        String input = function.getInput();
-        String output = function.getOutput();
-
+    public void register(String incoming, String outgoing, MessageFunction function) {
         synchronized (consumerRegistration) {
-            Sinks.Many<Message<?>> emitter = consumerRegistration.get(input);
+            Sinks.Many<Message<?>> emitter = consumerRegistration.get(incoming);
 
             if (emitter == null) {
                 emitter = Sinks.many().multicast().onBackpressureBuffer();
-                consumerRegistration.put(input, emitter);
+                consumerRegistration.put(incoming, emitter);
             }
 
             Publisher<Message<?>> messagePublisher = function.apply(emitter);
 
             if (messagePublisher instanceof Mono<Message<?>>) {
-                ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(output, message)).subscribe();
+                ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
             } else if (messagePublisher instanceof Flux<Message<?>>) {
-                ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(output, message)).subscribe();
+                ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
             }
         }
     }
@@ -78,7 +74,6 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
         Sinks.EmitResult emitResult = emitter.tryEmitNext(message);
         if (emitResult.isFailure()) {
             // todo
-
         }
         return Mono.empty();
     }
