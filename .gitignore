@@ -1,3 +1,18 @@
+# Jetbrains
+.idea
+**/*.iml
+**/log
+**/logs
+**/*.log
+
+# Eclipse
+.eclipse
+
+# Mac OS
+.DS_Store
+
+# Gradle
+.gradle
 # Compiled class file
 *.class
 
