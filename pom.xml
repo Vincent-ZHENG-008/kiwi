@@ -11,9 +11,9 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>messaging</module>
-        <module>function-binding</module>
         <module>converter</module>
+        <module>function-binding</module>
+        <module>messaging</module>
     </modules>
 
     <properties>
@@ -49,6 +49,14 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <distributionManagement>
+        <repository>
+            <id>nexus</id>
+            <name>mcmcnet nexus repository</name>
+            <url>http://10.172.0.71:8081/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
 
     <profiles>
         <profile>

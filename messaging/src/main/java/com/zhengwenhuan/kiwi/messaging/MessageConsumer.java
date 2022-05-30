@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 /**
  * @author zhengwenhuan@gdmcmc.cn
  */
-public class MessageConsumer implements Consumer<Sinks.Many<Message<?>>> {
+public class MessageConsumer implements Consumer<Sinks.Many<Message<Object>>> {
 
     private final Consumer<Object> delegate;
 
@@ -16,7 +16,7 @@ public class MessageConsumer implements Consumer<Sinks.Many<Message<?>>> {
     }
 
     @Override
-    public void accept(Sinks.Many<Message<?>> emitter) {
+    public void accept(Sinks.Many<Message<Object>> emitter) {
         emitter.asFlux().map(Message::payload).doOnNext(delegate).subscribe();
     }
 

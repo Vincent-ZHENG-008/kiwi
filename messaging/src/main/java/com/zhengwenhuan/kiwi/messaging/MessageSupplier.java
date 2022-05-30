@@ -1,6 +1,5 @@
 package com.zhengwenhuan.kiwi.messaging;
 
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
 import java.util.function.Supplier;
@@ -8,16 +7,16 @@ import java.util.function.Supplier;
 /**
  * @author zhengwenhuan@gdmcmc.cn
  */
-public class MessageSupplier implements Supplier<Publisher<Message<?>>> {
+public class MessageSupplier implements Supplier<Flux<Message<Object>>> {
 
-    private final Supplier<Publisher<?>> delegate;
+    private final Supplier<Flux<Object>> delegate;
 
-    public MessageSupplier(Supplier<Publisher<?>> delegate) {
+    public MessageSupplier(Supplier<Flux<Object>> delegate) {
         this.delegate = delegate;
     }
 
     @Override
-    public Publisher<Message<?>> get() {
-        return Flux.from((Publisher<?>) delegate).map(payload -> Message.MessageBuilder.withPayload(payload).build());
+    public Flux<Message<Object>> get() {
+        return Flux.from(delegate.get()).map(payload -> Message.MessageBuilder.withPayload(payload).build());
     }
 }

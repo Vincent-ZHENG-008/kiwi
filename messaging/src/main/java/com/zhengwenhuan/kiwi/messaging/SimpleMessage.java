@@ -14,9 +14,10 @@ public class SimpleMessage<T> implements Message<T> {
     private final T payload;
     private final Map<String, String> headers = Maps.mutable.empty();
 
-    public SimpleMessage(String id, T payload) {
+    public SimpleMessage(String id, T payload, Map<String, String> headers) {
         this.id = id;
         this.payload = payload;
+        this.headers.putAll(headers);
     }
 
     @Override
@@ -42,6 +43,20 @@ public class SimpleMessage<T> implements Message<T> {
     @Override
     public Optional<String> header(String key) {
         return Optional.ofNullable(headers.get(key));
+    }
+
+    @Override
+    public Message<T> header(String key, String value) {
+        headers.putIfAbsent(key, value);
+
+        return this;
+    }
+
+    @Override
+    public Message<T> header(Map<String, String> source) {
+        headers.putAll(source);
+
+        return this;
     }
 
     @Override

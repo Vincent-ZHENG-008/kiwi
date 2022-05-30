@@ -7,6 +7,6 @@ import reactor.core.publisher.Mono;
  */
 public interface MessageProducer {
 
-    <T> Mono<Void> sendAndForget(String destination, Message<T> message);
+    Mono<Void> sendAndForget(String destination, Message<Object> message);
 
 }
