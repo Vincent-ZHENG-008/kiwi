@@ -7,6 +7,10 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * @author zhengwenhuan@gdmcmc.cn
@@ -14,25 +18,28 @@ import java.util.Map;
 public class MessageDistributor implements MessageProducer, MessageRegistration {
 
     private final Map<String, Sinks.Many<Message<?>>> consumerRegistration = Maps.mutable.empty();
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final Lock rLock = rwLock.readLock();
+    private final Lock wLock = rwLock.writeLock();
 
     @Override
     public void register(String outgoing, MessageSupplier supplier) {
-        synchronized (consumerRegistration) {
+        try (TerminateExecute ignored = new TerminateExecute(rLock::unlock)) {
+            rLock.lock();
+
             Publisher<Message<?>> messagePublisher = supplier.get();
 
-            if (messagePublisher instanceof Mono<Message<?>>) {
-                ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
-            } else if (messagePublisher instanceof Flux<Message<?>>) {
-                ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
-            }
+            messageChannelSubscribe(messagePublisher, outgoing);
         }
     }
 
     @Override
     public void register(String incoming, MessageConsumer consumer) {
-        synchronized (consumerRegistration) {
-            Sinks.Many<Message<?>> emitter = consumerRegistration.get(incoming);
+        try (TerminateExecute ignored = new TerminateExecute(wLock::unlock)) {
+            // get lock
+            tryGetWriteLock(wLock);
 
+            Sinks.Many<Message<?>> emitter = consumerRegistration.get(incoming);
             if (emitter == null) {
                 emitter = Sinks.many().multicast().onBackpressureBuffer();
                 consumerRegistration.put(incoming, emitter);
@@ -44,38 +51,54 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
 
     @Override
     public void register(String incoming, String outgoing, MessageFunction function) {
-        synchronized (consumerRegistration) {
-            Sinks.Many<Message<?>> emitter = consumerRegistration.get(incoming);
+        try (TerminateExecute ignored = new TerminateExecute(wLock::unlock)) {
+            // get lock
+            tryGetWriteLock(wLock);
 
+            Sinks.Many<Message<?>> emitter = consumerRegistration.get(incoming);
             if (emitter == null) {
                 emitter = Sinks.many().multicast().onBackpressureBuffer();
                 consumerRegistration.put(incoming, emitter);
             }
 
             Publisher<Message<?>> messagePublisher = function.apply(emitter);
-
-            if (messagePublisher instanceof Mono<Message<?>>) {
-                ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
-            } else if (messagePublisher instanceof Flux<Message<?>>) {
-                ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
-            }
+            messageChannelSubscribe(messagePublisher, outgoing);
         }
     }
 
     @Override
     public <T> Mono<Void> sendAndForget(String destination, Message<T> message) {
         Sinks.Many<Message<?>> emitter = consumerRegistration.get(destination);
-
         if (emitter == null) {
-            // and forget
-            return Mono.empty();
+            return Mono.error(new NullPointerException("not match destination with :" + destination));
         }
 
-        Sinks.EmitResult emitResult = emitter.tryEmitNext(message);
-        if (emitResult.isFailure()) {
-            // todo
+        return Mono.defer(() -> Mono.fromRunnable(() -> {
+            Sinks.EmitResult emitResult = emitter.tryEmitNext(message);
+
+            if (emitResult.isFailure()) {
+                // todo
+            }
+        }));
+    }
+
+    private void messageChannelSubscribe(Publisher<Message<?>> messagePublisher, String outgoing) {
+        if (messagePublisher instanceof Mono<Message<?>>) {
+            ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
+        } else if (messagePublisher instanceof Flux<Message<?>>) {
+            ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
         }
-        return Mono.empty();
+    }
+
+    private static void tryGetWriteLock(Lock lock) {
+        // get lock
+        try {
+            if (!lock.tryLock(1, TimeUnit.SECONDS)) {
+                throw new RuntimeException("can not get lock; please check lock is dead-locked");
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException("can not get lock; please check lock is dead-locked");
+        }
     }
 
 }
