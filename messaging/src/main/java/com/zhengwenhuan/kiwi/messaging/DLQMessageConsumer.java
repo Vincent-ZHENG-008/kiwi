@@ -12,8 +12,10 @@ public class DLQMessageConsumer extends MessageConsumer {
 
     public DLQMessageConsumer() {
         super(source -> {
-            if (source instanceof DLQMessage) {
-                DLQMessage message = (DLQMessage) source;
+            final Object payload = source.payload();
+
+            if (payload instanceof DLQMessage) {
+                DLQMessage message = (DLQMessage) payload;
                 String destination = message.getDestination();
                 Throwable throwable = message.getThrowable();
 

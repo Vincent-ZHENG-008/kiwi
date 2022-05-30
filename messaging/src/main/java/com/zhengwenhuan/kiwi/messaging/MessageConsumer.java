@@ -9,15 +9,15 @@ import java.util.function.Consumer;
  */
 public class MessageConsumer implements Consumer<Sinks.Many<Message<Object>>> {
 
-    private final Consumer<Object> delegate;
+    private final Consumer<Message<Object>> delegate;
 
-    public MessageConsumer(Consumer<Object> input) {
+    public MessageConsumer(Consumer<Message<Object>> input) {
         this.delegate = input;
     }
 
     @Override
     public void accept(Sinks.Many<Message<Object>> emitter) {
-        emitter.asFlux().map(Message::payload).doOnNext(delegate).subscribe();
+        emitter.asFlux().doOnNext(delegate).subscribe();
     }
 
 }
