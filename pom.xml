@@ -50,10 +50,6 @@
         </dependencies>
     </dependencyManagement>
 
-    <repositories>
-        <repository></repository>
-    </repositories>
-
     <profiles>
         <profile>
             <id>release</id>
