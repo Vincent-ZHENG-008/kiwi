@@ -17,7 +17,7 @@ public class MessageConsumer implements Consumer<Sinks.Many<Message<?>>> {
 
     @Override
     public void accept(Sinks.Many<Message<?>> emitter) {
-        emitter.asFlux().map(Message::payload).doOnNext(this.delegate).subscribe();
+        emitter.asFlux().map(Message::payload).doOnNext(delegate).subscribe();
     }
 
 }

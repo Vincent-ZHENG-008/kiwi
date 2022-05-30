@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>messaging</artifactId>
+    <version>0.0.1</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -19,11 +20,6 @@
 
     <dependencies>
         <!-- core -->
-        <dependency>
-            <groupId>com.zhengwenhuan.experimental</groupId>
-            <artifactId>converter</artifactId>
-            <version>0.0.1</version>
-        </dependency>
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
