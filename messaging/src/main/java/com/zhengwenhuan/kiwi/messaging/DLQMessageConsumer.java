@@ -14,40 +14,37 @@ public class DLQMessageConsumer extends MessageConsumer {
         super(source -> {
             if (source instanceof DLQMessage) {
                 DLQMessage message = (DLQMessage) source;
-                String incoming = message.getIncoming();
+                String destination = message.getDestination();
                 Throwable throwable = message.getThrowable();
 
-                logger.log(Level.SEVERE, "DLQ accept message, incoming: " + incoming + ", error: " + throwable.getLocalizedMessage());
+                logger.log(Level.SEVERE, "DLQ accept message, destination: " + destination + ", error: " + throwable.getLocalizedMessage());
             }
         });
     }
 
     public static final class DLQMessage {
 
-        private String incoming;
+        private final String destination;
 
-        private Throwable throwable;
+        private final Throwable throwable;
 
-        public String getIncoming() {
-            return incoming;
+        public DLQMessage(String destination, Throwable throwable) {
+            this.destination = destination;
+            this.throwable = throwable;
         }
 
-        public void setIncoming(String incoming) {
-            this.incoming = incoming;
+        public String getDestination() {
+            return destination;
         }
 
         public Throwable getThrowable() {
             return throwable;
         }
 
-        public void setThrowable(Throwable throwable) {
-            this.throwable = throwable;
-        }
-
         @Override
         public String toString() {
             return "DLQMessage{" +
-                    "incoming='" + incoming + '\'' +
+                    "incoming='" + destination + '\'' +
                     ", throwable=" + throwable +
                     '}';
         }

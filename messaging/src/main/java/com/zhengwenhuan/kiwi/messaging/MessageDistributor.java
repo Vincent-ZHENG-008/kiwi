@@ -103,7 +103,7 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
             Sinks.EmitResult emitResult = emitter.tryEmitNext(message);
 
             if (emitResult.isFailure()) {
-                // todo
+                dlqSend(destination, new NullPointerException("destination can not match"));
             }
         }));
     }
@@ -114,7 +114,7 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
                     .flatMap(message -> sendAndForget(outgoing, message))
                     .onErrorResume(throwable -> {
                         // catch exception and forget exception
-                        return Mono.empty();
+                        return Mono.fromRunnable(() -> dlqSend(outgoing, throwable));
                     })
                     .subscribe();
         } else if (messagePublisher instanceof Flux<Message<?>>) {
@@ -122,9 +122,19 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
                     .flatMap(message -> sendAndForget(outgoing, message))
                     .onErrorResume(throwable -> {
                         // catch exception and forget exception
-                        return Mono.empty();
+                        return Mono.fromRunnable(() -> dlqSend(outgoing, throwable));
                     })
                     .subscribe();
+        }
+    }
+
+    private void dlqSend(String destination, Throwable throwable) {
+        Sinks.Many<Message<?>> dlq = consumerRegistration.get(DLQ_DEFAULT);
+        if (dlq != null) {
+            DLQMessageConsumer.DLQMessage dlqMessage = new DLQMessageConsumer.DLQMessage(destination, throwable);
+            Message<DLQMessageConsumer.DLQMessage> msg = Message.MessageBuilder.withPayload(dlqMessage).build();
+
+            dlq.emitNext(msg, Sinks.EmitFailureHandler.FAIL_FAST);
         }
     }
 
