@@ -17,10 +17,36 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class MessageDistributor implements MessageProducer, MessageRegistration {
 
+    private static final String DLQ_DEFAULT = "DLQ_Default";
+
     private final Map<String, Sinks.Many<Message<?>>> consumerRegistration = Maps.mutable.empty();
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
     private final Lock rLock = rwLock.readLock();
     private final Lock wLock = rwLock.writeLock();
+
+    public MessageDistributor() {
+        this(false, null);
+    }
+
+    public MessageDistributor(boolean dlqDefault, MessageConsumer dlqConsumer) {
+        // open default dlq
+        if (dlqDefault) {
+            try (TerminateExecute ignored = new TerminateExecute(wLock::unlock)) {
+                // get lock
+                tryGetWriteLock(wLock);
+
+                if (dlqConsumer == null) {
+                    dlqConsumer = new DLQMessageConsumer();
+                }
+                Sinks.Many<Message<?>> emitter = consumerRegistration.get(DLQ_DEFAULT);
+                if (emitter == null) {
+                    emitter = Sinks.many().multicast().onBackpressureBuffer();
+                    consumerRegistration.put(DLQ_DEFAULT, emitter);
+                }
+                dlqConsumer.accept(emitter);
+            }
+        }
+    }
 
     @Override
     public void register(String outgoing, MessageSupplier supplier) {
@@ -84,9 +110,21 @@ public class MessageDistributor implements MessageProducer, MessageRegistration 
 
     private void messageChannelSubscribe(Publisher<Message<?>> messagePublisher, String outgoing) {
         if (messagePublisher instanceof Mono<Message<?>>) {
-            ((Mono<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
+            ((Mono<Message<?>>) messagePublisher)
+                    .flatMap(message -> sendAndForget(outgoing, message))
+                    .onErrorResume(throwable -> {
+                        // catch exception and forget exception
+                        return Mono.empty();
+                    })
+                    .subscribe();
         } else if (messagePublisher instanceof Flux<Message<?>>) {
-            ((Flux<Message<?>>) messagePublisher).flatMap(message -> sendAndForget(outgoing, message)).subscribe();
+            ((Flux<Message<?>>) messagePublisher)
+                    .flatMap(message -> sendAndForget(outgoing, message))
+                    .onErrorResume(throwable -> {
+                        // catch exception and forget exception
+                        return Mono.empty();
+                    })
+                    .subscribe();
         }
     }
 
