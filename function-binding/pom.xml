@@ -20,7 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>com.zhengwenhuan.experimental</groupId>
-            <artifactId>messaging</artifactId>
+            <artifactId>kiwi-messaging</artifactId>
             <version>0.0.1</version>
         </dependency>
     </dependencies>

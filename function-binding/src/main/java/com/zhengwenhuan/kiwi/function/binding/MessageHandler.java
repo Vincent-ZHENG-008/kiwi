@@ -1,9 +1,7 @@
 package com.zhengwenhuan.kiwi.function.binding;
 
-import com.zhengwenhuan.kiwi.messaging.Message;
 import org.reactivestreams.Publisher;
 
-import java.util.concurrent.Flow;
 import java.util.function.Function;
 
 /**
